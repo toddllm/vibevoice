@@ -1,0 +1,1 @@
+{"error":"Generation failed","events":[{"chunks_planned":2,"target_frames":60,"target_seconds":8.0,"type":"started"},{"chunk_index":0,"message":"No valid speaker lines found in script","type":"error"},{"chunk_index":1,"message":"No valid speaker lines found in script","type":"error"},{"message":"No audio generated","type":"error"}]}

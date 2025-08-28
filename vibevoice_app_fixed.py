@@ -121,6 +121,12 @@ HTML_TEMPLATE = """
             <textarea id="text" rows="4" placeholder="Hello, this is a test of VibeVoice text-to-speech synthesis."></textarea>
         </div>
         
+        <div style="margin-top: 15px;">
+            <label for="duration">Max duration (seconds):</label>
+            <input type="range" id="duration" min="10" max="300" value="60" oninput="updateDurationLabel()">
+            <span id="durationLabel">60 seconds</span>
+        </div>
+        
         <button id="generateBtn" onclick="generateSpeech()">Generate Speech</button>
         
         <div id="status"></div>
@@ -137,6 +143,11 @@ HTML_TEMPLATE = """
         window.onload = function() {
             checkStatus();
         };
+        
+        function updateDurationLabel() {
+            const duration = document.getElementById('duration').value;
+            document.getElementById('durationLabel').textContent = duration + ' seconds';
+        }
         
         function checkStatus() {
             fetch('/status')
@@ -156,6 +167,7 @@ HTML_TEMPLATE = """
         
         function generateSpeech() {
             const text = document.getElementById('text').value;
+            const duration = parseInt(document.getElementById('duration').value);
             const statusDiv = document.getElementById('status');
             const generateBtn = document.getElementById('generateBtn');
             const audioPlayer = document.getElementById('audioPlayer');
@@ -169,7 +181,7 @@ HTML_TEMPLATE = """
             
             // Show loading state
             statusDiv.className = 'loading';
-            statusDiv.textContent = 'Generating speech... This may take a moment...';
+            statusDiv.textContent = 'Generating speech (up to ' + duration + ' seconds)... This may take a moment...';
             statusDiv.style.display = 'block';
             generateBtn.disabled = true;
             audioPlayer.style.display = 'none';
@@ -180,7 +192,10 @@ HTML_TEMPLATE = """
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text: text })
+                body: JSON.stringify({ 
+                    text: text,
+                    max_duration: duration
+                })
             })
             .then(response => {
                 if (!response.ok) {
@@ -270,11 +285,15 @@ def generate():
     try:
         data = request.json
         text = data.get('text', '').strip()
+        max_duration = data.get('max_duration', 60)  # Default 60 seconds
         
         if not text:
             return jsonify({'error': 'No text provided'}), 400
         
+        # Calculate max tokens from duration (7.5 tokens per second)
+        max_tokens = int(max_duration * 7.5)
         print(f"📝 Generating speech for: {text[:100]}...")
+        print(f"⏱️ Max duration: {max_duration}s, Max tokens: {max_tokens}")
         
         # Format text with speaker label
         formatted_text = f"Speaker 0: {text}"
@@ -334,7 +353,7 @@ def generate():
                         **inputs,
                         tokenizer=processor.tokenizer,
                         audio_streamer=audio_streamer,  # Critical!
-                        max_new_tokens=500,
+                        max_new_tokens=max_tokens,  # Dynamic based on user selection
                         do_sample=False,
                         cfg_scale=1.3,
                         generation_config={'do_sample': False}

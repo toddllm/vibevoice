@@ -56,9 +56,9 @@ class VibeVoiceDemo:
         # Load model
         self.model = VibeVoiceForConditionalGenerationInference.from_pretrained(
             self.model_path,
-            torch_dtype=torch.bfloat16,
-            device_map='cuda',
-            attn_implementation="flash_attention_2",
+            torch_dtype=torch.bfloat16 if self.device == "cuda" else torch.float32,
+            device_map=self.device,
+            attn_implementation="eager",  # Use eager instead of flash_attention_2
         )
         self.model.eval()
         
