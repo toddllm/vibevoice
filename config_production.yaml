@@ -1,0 +1,63 @@
+# VibeVoice Production Configuration
+# Phase 2: Gradual LLM Enablement
+
+llm:
+  enabled: true  # Enable for 7B model only initially
+  engine: ollama
+  model: qwen2:0.5b  # Start with small model, upgrade to qwen2:7b when ready
+  structure_temp: 0.1
+  refine_temp: 0.3
+  structure_timeout: 3.0  # Slightly longer for 7B
+  refine_timeout: 3.5
+  auto_process: true  # Auto-detect messy text
+  auto_threshold: 0.35  # Messiness threshold
+  cache_size: 100
+  
+  # Model-specific settings
+  model_routing:
+    "1.5B": false  # Keep LLM disabled for 1.5B streaming
+    "7B": true     # Enable LLM for 7B offline only
+
+voice_forge:
+  enabled: true
+  base_dir: demo/voices
+  auto_variants: true
+  variant_recipes:
+    - bright_fast
+    - warm_slow
+    - neutral_mid
+  
+  import_quality_gates:
+    min_duration: 15.0
+    warn_duration: 30.0
+    max_duration: 300.0
+    min_snr_db: 20
+    max_clipping_ratio: 0.001
+    min_speech_ratio: 0.5
+
+audio:
+  crossfade_ms: 50
+  max_pause_ms: 500
+  pause_injection: true
+  crossfade_on_speaker_change: false
+
+monitoring:
+  enabled: true
+  metrics_port: 9090
+  log_level: INFO
+  track_metrics:
+    - llm_latency
+    - generation_rtf
+    - cache_hit_rate
+    - voice_imports
+    - error_rate
+
+deployment:
+  mode: production
+  rollout_stage: 2  # Phase 2
+  features:
+    llm_7b: true
+    llm_1.5b: false
+    voice_import: true
+    voice_variants: true
+    web_studio: true
