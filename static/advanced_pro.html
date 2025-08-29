@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoice Pro - Advanced Multi-Speaker Synthesis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px;
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        h1 {
+            color: #333;
+            font-size: 2.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .mode-switch {
+            background: #f5f5f5;
+            padding: 10px 20px;
+            border-radius: 10px;
+            color: #667eea;
+            text-decoration: none;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .mode-switch:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .card {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .card-title {
+            color: #495057;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 15px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            resize: vertical;
+            min-height: 400px;
+            line-height: 1.6;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .speaker-list {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        .speaker-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #dee2e6;
+            transition: all 0.3s;
+        }
+        
+        .speaker-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+        }
+        
+        .speaker-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .speaker-name {
+            font-weight: 700;
+            color: #212529;
+            font-size: 1.1em;
+        }
+        
+        .speaker-badge {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .voice-select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .voice-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .voice-info {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .voice-tag {
+            background: #e9ecef;
+            color: #495057;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-size: 0.85em;
+        }
+        
+        .voice-tag.lang-en { background: #e3f2fd; color: #1976d2; }
+        .voice-tag.lang-zh { background: #fce4ec; color: #c2185b; }
+        .voice-tag.lang-in { background: #fff3e0; color: #f57c00; }
+        .voice-tag.bgm { background: #f3e5f5; color: #7b1fa2; }
+        
+        .controls-section {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        
+        .control-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            font-weight: 600;
+        }
+        
+        select {
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            min-width: 150px;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .btn-parse {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .btn-auto {
+            background: linear-gradient(135deg, #ffc107, #ff9800);
+        }
+        
+        .status {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            font-weight: 500;
+        }
+        
+        .status.info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #f44336;
+        }
+        
+        .audio-player {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            padding: 25px;
+            border-radius: 15px;
+            display: none;
+            border: 2px solid #dee2e6;
+        }
+        
+        audio {
+            width: 100%;
+            margin: 15px 0;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+        }
+        
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+            font-weight: 600;
+        }
+        
+        .examples {
+            padding: 20px;
+            background: linear-gradient(135deg, #fff3e0, #ffecb3);
+            border-radius: 15px;
+            border: 2px solid #ffc107;
+            margin-top: 20px;
+        }
+        
+        .example-title {
+            font-weight: 700;
+            color: #f57c00;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        
+        .example-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        
+        .example-btn {
+            background: white;
+            border: 2px solid #ffc107;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #f57c00;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .example-btn:hover {
+            background: #ffc107;
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .info-box h3 {
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+        
+        .info-box p {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ VibeVoice Pro</h1>
+            <div class="nav-buttons">
+                <a href="/" class="mode-switch">Simple Mode</a>
+                <a href="/advanced" class="mode-switch">Standard Advanced</a>
+            </div>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <div class="main-grid">
+            <div class="card">
+                <h2 class="card-title">📝 Multi-Speaker Dialogue</h2>
+                <textarea id="text" placeholder="Enter dialogue with speaker names (e.g., Alice: Hello...)">Alice: Hello everyone, welcome to our podcast. I'm really glad you could join us today.
+Bob: Thanks for having me! I'm excited to discuss this topic and share some thoughts—it's something I've been following closely.
+Alice: Same here. There's been a lot happening recently, and I think our listeners will find today's discussion really valuable.</textarea>
+                
+                <div class="examples">
+                    <div class="example-title">🎯 Quick Templates</div>
+                    <div class="example-grid">
+                        <button class="example-btn" onclick="loadExample('podcast')">Podcast</button>
+                        <button class="example-btn" onclick="loadExample('interview')">Interview</button>
+                        <button class="example-btn" onclick="loadExample('story')">Story</button>
+                        <button class="example-btn" onclick="loadExample('meeting')">Meeting</button>
+                        <button class="example-btn" onclick="loadExample('tutorial')">Tutorial</button>
+                        <button class="example-btn" onclick="loadExample('news')">News</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2 class="card-title">🎭 Speaker Configuration</h2>
+                <div id="speakerList" class="speaker-list">
+                    <p style="color: #6c757d; text-align: center; padding: 40px;">
+                        Click "Parse Speakers" to detect and configure speakers
+                    </p>
+                </div>
+                
+                <div class="info-box">
+                    <h3>💡 Voice Selection Tips</h3>
+                    <p>
+                        • 🇬🇧 English voices: Alice, Carter, Frank, Mary, Maya<br>
+                        • 🇨🇳 Chinese voices: Anchen, Bowen, Xinran<br>
+                        • 🇮🇳 International: Samuel<br>
+                        • 🎵 With BGM: Mary, Anchen
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-section">
+            <button class="btn btn-parse" onclick="parseSpeakers()">
+                🔍 Parse Speakers
+            </button>
+            
+            <button class="btn btn-auto" onclick="autoAssignVoices()">
+                🎲 Auto-Assign Voices
+            </button>
+            
+            <div class="control-group">
+                <label class="control-label">Scenario</label>
+                <select id="scenario">
+                    <option value="podcast">Podcast</option>
+                    <option value="interview">Interview</option>
+                    <option value="story">Story</option>
+                    <option value="meeting">Meeting</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label class="control-label">Model</label>
+                <select id="model">
+                    <option value="1.5B">1.5B - Fast</option>
+                    <option value="7B">7B - Quality</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label class="control-label">Duration</label>
+                <select id="duration">
+                    <option value="30">30 seconds</option>
+                    <option value="60">1 minute</option>
+                    <option value="120">2 minutes</option>
+                    <option value="300">5 minutes</option>
+                </select>
+            </div>
+            
+            <button id="synthesize" class="btn" onclick="synthesize()" style="margin-left: auto;">
+                🎤 Generate Speech
+            </button>
+        </div>
+        
+        <div id="audioPlayer" class="audio-player">
+            <h2 class="card-title">🔊 Generated Audio</h2>
+            <audio id="audio" controls></audio>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="speakers">-</div>
+                    <div class="stat-label">Speakers</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="duration">-</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="rtf">-</div>
+                    <div class="stat-label">RTF Speed</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="model-used">-</div>
+                    <div class="stat-label">Model</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="time">-</div>
+                    <div class="stat-label">Gen Time</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        let speakerMap = {};
+        let availableVoices = [];
+        let voiceRecommendations = {};
+        
+        // Load voices on startup
+        async function loadVoices() {
+            try {
+                const response = await fetch(`${API_URL}/voices`);
+                const data = await response.json();
+                availableVoices = data.voices || [];
+                voiceRecommendations = data.recommendations || {};
+                console.log(`Loaded ${availableVoices.length} voices`);
+            } catch (error) {
+                console.error('Failed to load voices:', error);
+            }
+        }
+        
+        function parseSpeakers() {
+            const text = document.getElementById('text').value;
+            const speakerList = document.getElementById('speakerList');
+            
+            // Parse speakers from text
+            const speakers = new Map();
+            const lines = text.split('\n');
+            
+            lines.forEach(line => {
+                const match = line.match(/^([^:]+):\s*(.+)/);
+                if (match) {
+                    const speaker = match[1].trim();
+                    if (!speakers.has(speaker)) {
+                        speakers.set(speaker, {
+                            name: speaker,
+                            count: 0,
+                            index: speakers.size
+                        });
+                    }
+                    speakers.get(speaker).count++;
+                }
+            });
+            
+            // Update speaker map
+            speakerMap = {};
+            speakers.forEach((data, name) => {
+                speakerMap[name] = data.index;
+            });
+            
+            // Display speakers
+            if (speakers.size > 0) {
+                speakerList.innerHTML = '';
+                speakers.forEach((data, name) => {
+                    const item = createSpeakerItem(name, data);
+                    speakerList.appendChild(item);
+                });
+                
+                showStatus(`✅ Detected ${speakers.size} speakers with ${lines.length} lines`, 'success');
+            } else {
+                speakerList.innerHTML = '<p style="color: #6c757d; text-align: center; padding: 40px;">No speakers detected. Use format "Name: text"</p>';
+                showStatus('⚠️ No speakers detected. Use format like "Alice: Hello"', 'error');
+            }
+        }
+        
+        function createSpeakerItem(name, data) {
+            const item = document.createElement('div');
+            item.className = 'speaker-item';
+            
+            // Create voice options grouped by language
+            const voiceOptions = createVoiceOptions();
+            
+            item.innerHTML = `
+                <div class="speaker-header">
+                    <span class="speaker-name">${name}</span>
+                    <span class="speaker-badge">Speaker ${data.index}</span>
+                </div>
+                <select class="voice-select" id="voice-${data.index}" onchange="updateVoiceInfo(${data.index})">
+                    <option value="">Auto-select voice</option>
+                    ${voiceOptions}
+                </select>
+                <div class="voice-info" id="voice-info-${data.index}"></div>
+                <div style="margin-top: 8px; color: #6c757d; font-size: 0.9em;">
+                    ${data.count} line${data.count > 1 ? 's' : ''} in dialogue
+                </div>
+            `;
+            
+            return item;
+        }
+        
+        function createVoiceOptions() {
+            let options = '';
+            
+            // Group voices by language
+            const grouped = {
+                'English': availableVoices.filter(v => v.language === 'en'),
+                'Chinese': availableVoices.filter(v => v.language === 'zh'),
+                'International': availableVoices.filter(v => v.language === 'in')
+            };
+            
+            for (const [group, voices] of Object.entries(grouped)) {
+                if (voices.length > 0) {
+                    options += `<optgroup label="${group}">`;
+                    voices.forEach(voice => {
+                        const label = voice.display_name || voice.speaker_name;
+                        options += `<option value="${voice.id}">${label}</option>`;
+                    });
+                    options += '</optgroup>';
+                }
+            }
+            
+            return options;
+        }
+        
+        function updateVoiceInfo(speakerIndex) {
+            const select = document.getElementById(`voice-${speakerIndex}`);
+            const infoDiv = document.getElementById(`voice-info-${speakerIndex}`);
+            
+            if (!select || !infoDiv) return;
+            
+            const voiceId = select.value;
+            const voice = availableVoices.find(v => v.id === voiceId);
+            
+            if (voice) {
+                let tags = [];
+                
+                // Language tag
+                const langMap = {'en': 'English', 'zh': 'Chinese', 'in': 'Indian'};
+                if (voice.language in langMap) {
+                    tags.push(`<span class="voice-tag lang-${voice.language}">${langMap[voice.language]}</span>`);
+                }
+                
+                // Gender tag
+                if (voice.gender === 'man') {
+                    tags.push('<span class="voice-tag">Male</span>');
+                } else if (voice.gender === 'woman') {
+                    tags.push('<span class="voice-tag">Female</span>');
+                }
+                
+                // BGM tag
+                if (voice.has_bgm) {
+                    tags.push('<span class="voice-tag bgm">🎵 BGM</span>');
+                }
+                
+                // Duration
+                if (voice.duration) {
+                    tags.push(`<span class="voice-tag">${voice.duration}s sample</span>`);
+                }
+                
+                infoDiv.innerHTML = tags.join('');
+            } else {
+                infoDiv.innerHTML = '';
+            }
+        }
+        
+        function autoAssignVoices() {
+            const scenario = document.getElementById('scenario').value;
+            
+            if (Object.keys(speakerMap).length === 0) {
+                parseSpeakers();
+                if (Object.keys(speakerMap).length === 0) {
+                    showStatus('⚠️ Please add some dialogue first', 'error');
+                    return;
+                }
+            }
+            
+            // Get recommendations for this scenario
+            const recommendations = voiceRecommendations[scenario] || {};
+            const allRecommended = [];
+            
+            // Collect all recommended voices for this scenario
+            Object.values(recommendations).forEach(voices => {
+                allRecommended.push(...voices);
+            });
+            
+            // Assign voices to speakers
+            let voiceIndex = 0;
+            Object.keys(speakerMap).forEach(speakerName => {
+                const speakerIndex = speakerMap[speakerName];
+                const select = document.getElementById(`voice-${speakerIndex}`);
+                
+                if (select && allRecommended.length > 0) {
+                    // Use recommended voice or cycle through them
+                    const voiceId = allRecommended[voiceIndex % allRecommended.length];
+                    
+                    // Check if this voice exists
+                    if (availableVoices.find(v => v.id === voiceId)) {
+                        select.value = voiceId;
+                        updateVoiceInfo(speakerIndex);
+                    }
+                    
+                    voiceIndex++;
+                }
+            });
+            
+            showStatus(`🎲 Auto-assigned voices for ${scenario} scenario`, 'success');
+        }
+        
+        async function synthesize() {
+            const text = document.getElementById('text').value;
+            const model = document.getElementById('model').value;
+            const maxSeconds = parseInt(document.getElementById('duration').value);
+            const button = document.getElementById('synthesize');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            if (!text.trim()) {
+                showStatus('⚠️ Please enter some dialogue', 'error');
+                return;
+            }
+            
+            // Convert to Speaker N format
+            let convertedText = text;
+            for (const [name, index] of Object.entries(speakerMap)) {
+                const regex = new RegExp(`^${name}:`, 'gm');
+                convertedText = convertedText.replace(regex, `Speaker ${index}:`);
+            }
+            
+            // Get first selected voice (for now)
+            const voice0 = document.getElementById('voice-0');
+            const selectedVoice = voice0 ? voice0.value : '';
+            
+            // Update UI
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span> Generating...';
+            audioPlayer.style.display = 'none';
+            showStatus('🎤 Generating multi-speaker dialogue...', 'info');
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${API_URL}/synthesize`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: convertedText,
+                        model: model,
+                        voice: selectedVoice || undefined,
+                        format: 'base64',
+                        max_seconds: maxSeconds
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const genTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                
+                // Play audio
+                const audioData = `data:audio/wav;base64,${data.audio}`;
+                const audio = document.getElementById('audio');
+                audio.src = audioData;
+                
+                // Update stats
+                document.getElementById('speakers').textContent = Object.keys(speakerMap).length;
+                document.getElementById('duration').textContent = `${data.duration.toFixed(1)}s`;
+                document.getElementById('rtf').textContent = `${data.rtf.toFixed(1)}x`;
+                document.getElementById('model-used').textContent = model;
+                document.getElementById('time').textContent = `${genTime}s`;
+                
+                // Show player
+                audioPlayer.style.display = 'block';
+                showStatus(`✅ Generated ${data.duration.toFixed(1)}s of dialogue with ${Object.keys(speakerMap).length} speakers`, 'success');
+                
+                // Auto-play
+                audio.play().catch(e => console.log('Auto-play blocked'));
+                
+            } catch (error) {
+                showStatus(`❌ Error: ${error.message}`, 'error');
+                console.error('Synthesis error:', error);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '🎤 Generate Speech';
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        function loadExample(type) {
+            const examples = {
+                podcast: `Alice: Hello everyone, welcome to our technology podcast. I'm really excited about today's topic.
+Bob: Thanks for having me, Alice! Yes, AI has been evolving at an incredible pace lately.
+Alice: Absolutely. Let's start with text-to-speech. The quality improvements have been remarkable.
+Bob: Indeed. Models like VibeVoice can now generate up to 90 minutes of natural conversation.`,
+                
+                interview: `Interviewer: Thank you for joining us today. Can you tell us about your latest research?
+Dr. Smith: Of course! We've been working on neural speech synthesis that captures natural conversation flow.
+Interviewer: That sounds fascinating. What makes this approach different?
+Dr. Smith: The key innovation is our ultra-low frame rate of 7.5 Hz, which enables long-form generation.`,
+                
+                story: `Narrator: Once upon a time, in a bustling tech hub, two innovators met at a conference.
+Emma: I can't believe we're finally seeing AI that can truly understand context!
+David: Right? And the applications are endless. From education to entertainment.
+Emma: What excites me most is the accessibility it brings to content creation.`,
+                
+                meeting: `Manager: Good morning everyone. Let's review our Q4 objectives.
+Sarah: I've prepared the analysis of our current progress.
+Tom: Great. I'd also like to discuss the new product features.
+Manager: Perfect. Sarah, please start with your findings.`,
+                
+                tutorial: `Instructor: Today we'll learn about neural networks. Let's start with the basics.
+Student: Professor, how do neural networks actually learn?
+Instructor: Great question! They adjust weights through a process called backpropagation.
+Student: So it's like the network is teaching itself from examples?
+Instructor: Exactly! That's a perfect way to think about it.`,
+                
+                news: `Anchor: Good evening. We begin tonight with breaking developments in technology.
+Reporter: Thanks, John. Microsoft Research has just announced VibeVoice, a breakthrough in speech synthesis.
+Anchor: Tell us more about what makes this technology special.
+Reporter: It can generate up to 90 minutes of multi-speaker conversation with remarkable naturalness.`
+            };
+            
+            document.getElementById('text').value = examples[type];
+            parseSpeakers();
+        }
+        
+        // Initialize
+        loadVoices().then(() => {
+            // Auto-parse if there's text
+            if (document.getElementById('text').value.trim()) {
+                parseSpeakers();
+            }
+        });
+    </script>
+</body>
+</html>

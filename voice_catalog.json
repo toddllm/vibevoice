@@ -1,0 +1,194 @@
+{
+  "version": "1.0",
+  "total_voices": 9,
+  "voices": {
+    "zh-Anchen_man_bgm": {
+      "id": "zh-Anchen_man_bgm.wav",
+      "path": "demo/voices/zh-Anchen_man_bgm.wav",
+      "name": "zh-Anchen_man_bgm",
+      "speaker_name": "Anchen",
+      "language": "zh",
+      "gender": "man",
+      "has_bgm": true,
+      "sample_rate": 24000,
+      "duration": 24.53,
+      "display_name": "\ud83c\udde8\ud83c\uddf3 Anchen (Male) \ud83c\udfb5",
+      "description": "Male Chinese speaker with background music",
+      "best_for": "Chinese podcasts, storytelling",
+      "characteristics": "Warm, atmospheric, engaging"
+    },
+    "zh-Xinran_woman": {
+      "id": "zh-Xinran_woman.wav",
+      "path": "demo/voices/zh-Xinran_woman.wav",
+      "name": "zh-Xinran_woman",
+      "speaker_name": "Xinran",
+      "language": "zh",
+      "gender": "woman",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 27.87,
+      "display_name": "\ud83c\udde8\ud83c\uddf3 Xinran (Female)",
+      "description": "Female Chinese speaker, pleasant and clear",
+      "best_for": "Chinese narration, educational content",
+      "characteristics": "Gentle, clear, professional"
+    },
+    "en-Maya_woman": {
+      "id": "en-Maya_woman.wav",
+      "path": "demo/voices/en-Maya_woman.wav",
+      "name": "en-Maya_woman",
+      "speaker_name": "Maya",
+      "language": "en",
+      "gender": "woman",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 27.2,
+      "display_name": "\ud83c\uddec\ud83c\udde7 Maya (Female)",
+      "description": "Female English speaker, youthful and energetic",
+      "best_for": "Educational content, presentations",
+      "characteristics": "Bright, clear, enthusiastic"
+    },
+    "en-Mary_woman_bgm": {
+      "id": "en-Mary_woman_bgm.wav",
+      "path": "demo/voices/en-Mary_woman_bgm.wav",
+      "name": "en-Mary_woman_bgm",
+      "speaker_name": "Mary",
+      "language": "en",
+      "gender": "woman",
+      "has_bgm": true,
+      "sample_rate": 24000,
+      "duration": 26.93,
+      "display_name": "\ud83c\uddec\ud83c\udde7 Mary (Female) \ud83c\udfb5",
+      "description": "Female English speaker with background music",
+      "best_for": "Storytelling, creative content",
+      "characteristics": "Expressive, musical, atmospheric"
+    },
+    "en-Carter_man": {
+      "id": "en-Carter_man.wav",
+      "path": "demo/voices/en-Carter_man.wav",
+      "name": "en-Carter_man",
+      "speaker_name": "Carter",
+      "language": "en",
+      "gender": "man",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 27.73,
+      "display_name": "\ud83c\uddec\ud83c\udde7 Carter (Male)",
+      "description": "Male English speaker, deep and authoritative",
+      "best_for": "News, documentaries, formal content",
+      "characteristics": "Deep, professional, authoritative"
+    },
+    "en-Alice_woman": {
+      "id": "en-Alice_woman.wav",
+      "path": "demo/voices/en-Alice_woman.wav",
+      "name": "en-Alice_woman",
+      "speaker_name": "Alice",
+      "language": "en",
+      "gender": "woman",
+      "has_bgm": false,
+      "sample_rate": 16000,
+      "duration": 9.27,
+      "display_name": "\ud83c\uddec\ud83c\udde7 Alice (Female)",
+      "description": "Female English speaker, clear and professional",
+      "best_for": "Podcasts, narration, general use",
+      "characteristics": "Clear, friendly, versatile"
+    },
+    "en-Frank_man": {
+      "id": "en-Frank_man.wav",
+      "path": "demo/voices/en-Frank_man.wav",
+      "name": "en-Frank_man",
+      "speaker_name": "Frank",
+      "language": "en",
+      "gender": "man",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 24.13,
+      "display_name": "\ud83c\uddec\ud83c\udde7 Frank (Male)",
+      "description": "Male English speaker, casual and friendly",
+      "best_for": "Casual conversations, tutorials",
+      "characteristics": "Warm, approachable, conversational"
+    },
+    "zh-Bowen_man": {
+      "id": "zh-Bowen_man.wav",
+      "path": "demo/voices/zh-Bowen_man.wav",
+      "name": "zh-Bowen_man",
+      "speaker_name": "Bowen",
+      "language": "zh",
+      "gender": "man",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 29.47,
+      "display_name": "\ud83c\udde8\ud83c\uddf3 Bowen (Male)",
+      "description": "Male Chinese speaker, professional",
+      "best_for": "Chinese news, formal content",
+      "characteristics": "Clear, authoritative, formal"
+    },
+    "in-Samuel_man": {
+      "id": "in-Samuel_man.wav",
+      "path": "demo/voices/in-Samuel_man.wav",
+      "name": "in-Samuel_man",
+      "speaker_name": "Samuel",
+      "language": "in",
+      "gender": "man",
+      "has_bgm": false,
+      "sample_rate": 24000,
+      "duration": 26.53,
+      "display_name": "\ud83c\uddee\ud83c\uddf3 Samuel (Male)",
+      "description": "Male Indian English speaker",
+      "best_for": "International content, tech tutorials",
+      "characteristics": "Clear accent, professional"
+    }
+  },
+  "recommendations": {
+    "podcast": {
+      "host": [
+        "en-Alice_woman",
+        "en-Maya_woman"
+      ],
+      "guest": [
+        "en-Carter_man",
+        "en-Frank_man"
+      ],
+      "narrator": [
+        "en-Mary_woman_bgm"
+      ]
+    },
+    "interview": {
+      "interviewer": [
+        "en-Alice_woman",
+        "en-Carter_man"
+      ],
+      "interviewee": [
+        "en-Frank_man",
+        "en-Maya_woman"
+      ]
+    },
+    "story": {
+      "narrator": [
+        "en-Mary_woman_bgm",
+        "zh-Anchen_man_bgm"
+      ],
+      "character1": [
+        "en-Alice_woman",
+        "zh-Xinran_woman"
+      ],
+      "character2": [
+        "en-Frank_man",
+        "zh-Bowen_man"
+      ]
+    },
+    "meeting": {
+      "manager": [
+        "en-Carter_man",
+        "zh-Bowen_man"
+      ],
+      "team_member1": [
+        "en-Alice_woman",
+        "zh-Xinran_woman"
+      ],
+      "team_member2": [
+        "en-Frank_man",
+        "in-Samuel_man"
+      ]
+    }
+  }
+}

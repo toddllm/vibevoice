@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VibeVoice TTS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+            transition: border-color 0.3s;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+        
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 10px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            width: 100%;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border: 1px solid #81c784;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef5350;
+        }
+        
+        .audio-player {
+            margin-top: 20px;
+            display: none;
+        }
+        
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .stat {
+            text-align: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .examples {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .example-btn {
+            background: #f5f5f5;
+            border: 2px solid #e0e0e0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s;
+            display: inline-block;
+        }
+        
+        .example-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ VibeVoice</h1>
+        <p class="subtitle">Neural Text-to-Speech System</p>
+        
+        <div class="form-group">
+            <label for="text">Text to Synthesize</label>
+            <textarea id="text" placeholder="Enter text here. Use 'Speaker 0:' for speaker tags...">Speaker 0: Welcome to VibeVoice, a state-of-the-art text to speech system.</textarea>
+        </div>
+        
+        <div class="controls">
+            <div class="form-group">
+                <label for="model">Model</label>
+                <select id="model">
+                    <option value="1.5B">1.5B - Fast Streaming</option>
+                    <option value="7B">7B - High Quality</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="voice">Voice</label>
+                <select id="voice">
+                    <option value="">Loading voices...</option>
+                </select>
+            </div>
+        </div>
+        
+        <button id="synthesize" class="btn" onclick="synthesize()">
+            Generate Speech
+        </button>
+        
+        <div id="status" class="status"></div>
+        
+        <div id="audioPlayer" class="audio-player">
+            <audio id="audio" controls></audio>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-value" id="duration">-</div>
+                    <div class="stat-label">Duration</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="rtf">-</div>
+                    <div class="stat-label">RTF</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-value" id="time">-</div>
+                    <div class="stat-label">Gen Time</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="examples">
+            <label>Quick Examples:</label>
+            <button class="example-btn" onclick="setExample('simple')">Simple</button>
+            <button class="example-btn" onclick="setExample('dialogue')">Dialogue</button>
+            <button class="example-btn" onclick="setExample('technical')">Technical</button>
+            <button class="example-btn" onclick="setExample('story')">Story</button>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = window.location.origin;
+        
+        // Load voices on startup
+        async function loadVoices() {
+            try {
+                const response = await fetch(`${API_URL}/voices`);
+                const data = await response.json();
+                const select = document.getElementById('voice');
+                
+                select.innerHTML = '<option value="">Default Voice</option>';
+                data.voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.value = voice.id;
+                    option.textContent = voice.name.replace('.wav', '').replace(/-/g, ' ');
+                    select.appendChild(option);
+                });
+                
+                // Select Alice by default
+                const alice = Array.from(select.options).find(opt => 
+                    opt.value.includes('Alice'));
+                if (alice) alice.selected = true;
+                
+            } catch (error) {
+                console.error('Failed to load voices:', error);
+            }
+        }
+        
+        async function synthesize() {
+            const text = document.getElementById('text').value;
+            const model = document.getElementById('model').value;
+            const voice = document.getElementById('voice').value;
+            const button = document.getElementById('synthesize');
+            const status = document.getElementById('status');
+            const audioPlayer = document.getElementById('audioPlayer');
+            
+            if (!text.trim()) {
+                showStatus('Please enter some text', 'error');
+                return;
+            }
+            
+            // Update UI
+            button.disabled = true;
+            button.innerHTML = '<span class="spinner"></span> Generating...';
+            audioPlayer.style.display = 'none';
+            showStatus('Generating speech...', 'info');
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(`${API_URL}/synthesize`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: text,
+                        model: model,
+                        voice: voice || undefined,
+                        format: 'base64'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const genTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                
+                // Play audio
+                const audioData = `data:audio/wav;base64,${data.audio}`;
+                const audio = document.getElementById('audio');
+                audio.src = audioData;
+                
+                // Update stats
+                document.getElementById('duration').textContent = `${data.duration.toFixed(1)}s`;
+                document.getElementById('rtf').textContent = `${data.rtf.toFixed(1)}x`;
+                document.getElementById('time').textContent = `${genTime}s`;
+                
+                // Show player
+                audioPlayer.style.display = 'block';
+                showStatus(`Generated ${data.duration.toFixed(1)}s of speech using ${model} model`, 'success');
+                
+                // Auto-play
+                audio.play().catch(e => console.log('Auto-play blocked'));
+                
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+                console.error('Synthesis error:', error);
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Generate Speech';
+            }
+        }
+        
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+            status.style.display = 'block';
+            
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
+        }
+        
+        function setExample(type) {
+            const examples = {
+                simple: "Speaker 0: Hello, this is a simple test of the VibeVoice text to speech system.",
+                dialogue: "Speaker 0: Welcome to our podcast about AI.\nSpeaker 1: Thanks for having me! It's exciting to discuss these topics.\nSpeaker 0: Let's start with recent advances in neural speech synthesis.",
+                technical: "Speaker 0: VibeVoice uses a next-token diffusion framework to generate high-quality speech at 7.5 Hz frame rate, enabling synthesis of up to 90 minutes of continuous audio.",
+                story: "Speaker 0: Once upon a time, in a digital realm far away, there lived an AI that could speak with the voice of anyone. It brought stories to life with remarkable clarity and emotion."
+            };
+            
+            document.getElementById('text').value = examples[type];
+        }
+        
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                synthesize();
+            }
+        });
+        
+        // Initialize
+        loadVoices();
+    </script>
+</body>
+</html>
