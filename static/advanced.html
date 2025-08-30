@@ -400,6 +400,67 @@ Alice: Same here. There's been a lot happening recently, and I think our listene
                 </div>
             </div>
         </div>
+        
+        <!-- Manual LLM Workflow Section -->
+        <div class="manual-llm-section" style="margin-top: 40px; padding: 30px; background: #f8f9fa; border-radius: 15px; border-left: 5px solid #667eea;">
+            <h2>🤖 Manual LLM Workflow</h2>
+            <p style="color: #666; margin-bottom: 20px;">Use your own LLM (ChatGPT, Claude, etc.) for text processing, then paste the result here for synthesis.</p>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                <!-- Prompt Generator -->
+                <div>
+                    <h3>📋 1. Copy This Prompt</h3>
+                    <textarea id="llmPrompt" readonly style="width: 100%; height: 200px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 12px; background: #fff;">
+Convert text to speaker format. Split EVERY sentence into separate lines.
+
+RULES:
+1. Extract quoted dialogue "..." as Speaker 1, 2, 3... (each person gets different number)
+2. Put ALL narrative/description as Speaker 0 lines (split into sentences)
+3. Split long paragraphs into multiple Speaker 0 lines
+
+EXAMPLES:
+
+Input: Alice entered the room. "Hello everyone," she said. Bob waved.
+Output:
+Speaker 0: Alice entered the room.
+Speaker 1: Hello everyone
+Speaker 0: she said. Bob waved.
+
+Input: "Good morning," Alice began. "Thank you all for coming." Bob looked up. "No problem," he replied.
+Output:
+Speaker 1: Good morning
+Speaker 0: Alice began.
+Speaker 1: Thank you all for coming.
+Speaker 0: Bob looked up.
+Speaker 2: No problem
+Speaker 0: he replied.
+
+---
+TEXT: [PASTE YOUR TEXT HERE]
+---
+OUTPUT:</textarea>
+                    <button onclick="copyPrompt()" style="margin-top: 10px; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">📋 Copy Prompt</button>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <strong>Available Voices:</strong><br>
+                        <span id="voiceList">Loading...</span>
+                    </div>
+                </div>
+                
+                <!-- Manual Input -->
+                <div>
+                    <h3>📝 2. Paste LLM Output</h3>
+                    <textarea id="manualLlmOutput" placeholder="Paste your LLM's speaker format output here...
+
+Example:
+Speaker 0: Alice walked into the room
+Speaker 1: Hello everyone
+Speaker 2: Thanks for coming" style="width: 100%; height: 200px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-family: monospace; font-size: 12px;"></textarea>
+                    <button onclick="processManualOutput()" style="margin-top: 10px; padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">🎤 Process & Synthesize</button>
+                </div>
+            </div>
+            
+            <div id="manualStatus" style="margin-top: 20px; padding: 15px; border-radius: 8px; display: none;"></div>
+        </div>
     </div>
     
     <script>
@@ -626,8 +687,117 @@ Manager: Perfect. Sarah, why don't you start us off with the metrics?`
             parseSpeakers();
         }
         
+        // === MANUAL LLM WORKFLOW FUNCTIONS ===
+        
+        function copyPrompt() {
+            const promptText = document.getElementById('llmPrompt').value;
+            navigator.clipboard.writeText(promptText).then(() => {
+                showManualStatus('Prompt copied to clipboard!', 'success');
+            }).catch(() => {
+                showManualStatus('Failed to copy prompt', 'error');
+            });
+        }
+        
+        async function processManualOutput() {
+            const output = document.getElementById('manualLlmOutput').value.trim();
+            if (!output) {
+                showManualStatus('Please paste LLM output first', 'error');
+                return;
+            }
+            
+            showManualStatus('Processing manual LLM output...', 'info');
+            
+            try {
+                // Parse and validate the manual output
+                const lines = output.split('\n').filter(line => line.trim());
+                const speakerLines = lines.filter(line => line.match(/^Speaker \d+:/));
+                
+                if (speakerLines.length === 0) {
+                    showManualStatus('No valid "Speaker N:" lines found in output', 'error');
+                    return;
+                }
+                
+                showManualStatus(`Found ${speakerLines.length} speaker lines. Synthesizing...`, 'info');
+                console.log('[Manual LLM] Processing:', {
+                    input_lines: lines.length,
+                    speaker_lines: speakerLines.length,
+                    preview: speakerLines.slice(0, 3)
+                });
+                
+                // Send to synthesis endpoint
+                const response = await fetch(`${API_URL}/synthesize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: output,
+                        model: '7B',  // Use 7B for quality
+                        voice: 'demo/voices/en-Alice_woman.wav',
+                        format: 'base64'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Synthesis failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Display results
+                const audio = document.getElementById('audio');
+                audio.src = 'data:audio/wav;base64,' + data.audio;
+                
+                document.getElementById('duration').textContent = (data.duration || 0).toFixed(1) + 's';
+                document.getElementById('rtf').textContent = (data.rtf || 0).toFixed(2) + 'x';
+                
+                showManualStatus(`✅ Success! Generated ${(data.duration || 0).toFixed(1)}s of audio`, 'success');
+                console.log('[Manual LLM] Success:', {
+                    duration: data.duration,
+                    rtf: data.rtf,
+                    speakers: speakerLines.length
+                });
+                
+            } catch (error) {
+                showManualStatus(`❌ Error: ${error.message}`, 'error');
+                console.error('[Manual LLM] Error:', error);
+            }
+        }
+        
+        function showManualStatus(message, type) {
+            const status = document.getElementById('manualStatus');
+            status.textContent = message;
+            status.style.display = 'block';
+            status.style.background = type === 'success' ? '#d4edda' : 
+                                    type === 'error' ? '#f8d7da' : '#cce7ff';
+            status.style.color = type === 'success' ? '#155724' :
+                               type === 'error' ? '#721c24' : '#004085';
+            
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 5000);
+            }
+        }
+        
+        function updateVoiceList() {
+            const voiceListSpan = document.getElementById('voiceList');
+            if (availableVoices.length > 0) {
+                const maleVoices = availableVoices.filter(v => v.name.includes('man') || ['Frank', 'Carter', 'Samuel'].some(n => v.name.includes(n)));
+                const femaleVoices = availableVoices.filter(v => v.name.includes('woman') || ['Alice', 'Emily', 'Maya'].some(n => v.name.includes(n)));
+                
+                voiceListSpan.innerHTML = `
+                    <span style="color: #0066cc;">Male:</span> ${maleVoices.map(v => v.name.replace('.wav', '').split('-')[1] || v.name).join(', ')}<br>
+                    <span style="color: #cc0066;">Female:</span> ${femaleVoices.map(v => v.name.replace('.wav', '').split('-')[1] || v.name).join(', ')}
+                `;
+            } else {
+                voiceListSpan.textContent = 'Frank, Carter, Samuel (male), Alice, Emily, Maya (female)';
+            }
+        }
+        
         // Initialize
         loadVoices();
+        updateVoiceList();
         
         // Auto-parse on load if there's text
         window.addEventListener('load', () => {
@@ -635,6 +805,130 @@ Manager: Perfect. Sarah, why don't you start us off with the metrics?`
                 parseSpeakers();
             }
         });
+        
+        // === MANUAL LLM WORKFLOW FUNCTIONS ===
+        
+        function copyPrompt() {
+            const promptText = document.getElementById('llmPrompt').value;
+            navigator.clipboard.writeText(promptText).then(() => {
+                showManualStatus('Prompt copied to clipboard!', 'success');
+            }).catch(() => {
+                showManualStatus('Failed to copy prompt', 'error');
+            });
+        }
+        
+        async function processManualOutput() {
+            const output = document.getElementById('manualLlmOutput').value.trim();
+            if (!output) {
+                showManualStatus('Please paste LLM output first', 'error');
+                return;
+            }
+            
+            showManualStatus('Processing manual LLM output...', 'info');
+            
+            try {
+                // Parse and validate the manual output
+                const lines = output.split('\n').filter(line => line.trim());
+                const speakerLines = lines.filter(line => line.match(/^Speaker \d+:/));
+                
+                if (speakerLines.length === 0) {
+                    showManualStatus('No valid "Speaker N:" lines found in output', 'error');
+                    return;
+                }
+                
+                showManualStatus(`Found ${speakerLines.length} speaker lines. Synthesizing...`, 'info');
+                console.log('[Manual LLM] Processing:', {
+                    input_lines: lines.length,
+                    speaker_lines: speakerLines.length,
+                    preview: speakerLines.slice(0, 3)
+                });
+                
+                // Send to synthesis endpoint
+                const response = await fetch(`${API_URL}/synthesize`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: output,
+                        model: '7B',
+                        voice: 'demo/voices/en-Alice_woman.wav',
+                        format: 'base64'
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Synthesis failed: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Display results
+                const audio = document.getElementById('audio');
+                audio.src = 'data:audio/wav;base64,' + data.audio;
+                
+                document.getElementById('duration').textContent = (data.duration || 0).toFixed(1) + 's';
+                document.getElementById('rtf').textContent = (data.rtf || 0).toFixed(2) + 'x';
+                
+                showManualStatus(`✅ Success! Generated ${(data.duration || 0).toFixed(1)}s of audio`, 'success');
+                console.log('[Manual LLM] Success:', {
+                    duration: data.duration,
+                    rtf: data.rtf,
+                    speakers: speakerLines.length
+                });
+                
+            } catch (error) {
+                showManualStatus(`❌ Error: ${error.message}`, 'error');
+                console.error('[Manual LLM] Error:', error);
+            }
+        }
+        
+        function showManualStatus(message, type) {
+            const status = document.getElementById('manualStatus');
+            status.textContent = message;
+            status.style.display = 'block';
+            status.style.background = type === 'success' ? '#d4edda' : 
+                                    type === 'error' ? '#f8d7da' : '#cce7ff';
+            status.style.color = type === 'success' ? '#155724' :
+                               type === 'error' ? '#721c24' : '#004085';
+            
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 5000);
+            }
+        }
+        
+        function updateVoiceList() {
+            const voiceListSpan = document.getElementById('voiceList');
+            voiceListSpan.textContent = 'Frank, Carter, Samuel (male), Alice, Emily, Maya (female)';
+        }
+        
+        // Load current prompt from server
+        async function loadCurrentPrompt() {
+            try {
+                const response = await fetch(`${API_URL}/prompt/current`);
+                const data = await response.json();
+                
+                if (data.prompt_template) {
+                    document.getElementById('llmPrompt').value = data.prompt_template;
+                    console.log('[Advanced] Loaded current prompt template');
+                }
+                
+                if (data.voice_info) {
+                    document.getElementById('voiceList').innerHTML = data.voice_info.replace(/\n/g, '<br>');
+                }
+            } catch (error) {
+                console.error('[Advanced] Failed to load prompt:', error);
+                updateVoiceList(); // Fallback to static list
+            }
+        }
+        
+        // Initialize manual LLM features
+        if (document.getElementById('voiceList')) {
+            loadCurrentPrompt();
+        }
+        
     </script>
 </body>
 </html>

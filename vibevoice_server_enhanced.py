@@ -32,12 +32,24 @@ CORS(app)
 # Load configuration
 config = load_config()
 
-# Start with LLM disabled for safety
-config['llm']['enabled'] = False
+# Enable LLM for narrator functionality
+config['llm']['enabled'] = True
+config['llm']['model'] = 'qwen3:8b'  # Switch to 8B model for best text processing
 logger.info(f"LLM: {'ENABLED' if config['llm']['enabled'] else 'DISABLED'}")
 
 # Initialize enhanced server
 vibevoice_server = EnhancedVibeVoiceServer(config)
+
+# Force initialize LLM processor for qwen3 integration
+if not vibevoice_server.llm_processor:
+    from llm_text_processor import LLMTextProcessor
+    vibevoice_server.llm_processor = LLMTextProcessor(config['llm'])
+    logger.info("Force-initialized LLM processor for qwen3:8b")
+
+# Initialize batch processor
+from batch_processor import init_batch_processor
+batch_processor = init_batch_processor(vibevoice_server.llm_processor, vibevoice_server)
+logger.info("Batch processor initialized")
 
 # Configuration
 HOST = '0.0.0.0'
@@ -106,6 +118,113 @@ def advanced_pro():
     """Serve professional interface"""
     return send_from_directory('static', 'advanced_pro.html')
 
+@app.route('/messy')
+def messy_text_demo():
+    """Messy text demo interface"""
+    return send_from_directory('static', 'messy_text_demo.html')
+
+@app.route('/normalize', methods=['POST'])
+def normalize_text():
+    """Normalize messy text using LLM if available, fallback to regex"""
+    data = request.get_json()
+    text = data.get('text', '')
+    
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    try:
+        # Use LLM processing only
+        if vibevoice_server.llm_processor:
+            processed_text, synthesis_units = vibevoice_server.llm_processor.process(text, force_llm=True)
+            return jsonify({
+                'normalized': processed_text,
+                'units': len(synthesis_units),
+                'used_llm': True
+            })
+        else:
+            return jsonify({'error': 'LLM processor not available'}), 503
+    except Exception as e:
+        logger.error(f"Normalization error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/normalize/stream', methods=['POST'])
+def normalize_stream():
+    """Stream normalize results in real-time"""
+    data = request.get_json()
+    text = data.get('text', '')
+    
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    def generate_stream():
+        try:
+            if vibevoice_server.llm_processor:
+                text_length = len(text)
+                word_count = len(text.split())
+                yield f"data: {json.dumps({'type': 'status', 'message': f'Processing {word_count} words with LLM (no timeout)...'})}\n\n"
+                
+                import time
+                start_time = time.time()
+                
+                # Process with LLM - with progress updates for long requests
+                try:
+                    # Send periodic progress updates for long processing
+                    def send_progress():
+                        for i in range(30):  # Check for 30 seconds
+                            time.sleep(1)
+                            elapsed = time.time() - start_time
+                            yield f"data: {json.dumps({'type': 'progress', 'message': f'Processing complex text... {elapsed:.0f}s elapsed'})}\n\n"
+                    
+                    import threading
+                    import concurrent.futures
+                    
+                    # Start LLM processing in thread
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        llm_future = executor.submit(vibevoice_server.llm_processor.process, text, True)
+                        
+                        # Send progress updates while waiting
+                        while not llm_future.done():
+                            elapsed = time.time() - start_time
+                            if elapsed > 10:  # After 10 seconds, send progress updates
+                                yield f"data: {json.dumps({'type': 'progress', 'message': f'Still processing complex text... {elapsed:.0f}s elapsed'})}\n\n"
+                            time.sleep(2)
+                        
+                        # Get result
+                        processed_text, synthesis_units = llm_future.result(timeout=300)
+                        duration = time.time() - start_time
+                        
+                        yield f"data: {json.dumps({'type': 'progress', 'message': f'LLM completed in {duration:.1f}s - Generated {len(synthesis_units)} units'})}\n\n"
+                        
+                        # Detailed logging for browser console
+                        yield f"data: {json.dumps({'type': 'debug', 'message': f'Input length: {len(text)} chars, {len(text.split())} words'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'debug', 'message': f'Output length: {len(processed_text)} chars'})}\n\n"
+                        yield f"data: {json.dumps({'type': 'debug', 'message': f'Speakers detected: {len(synthesis_units)} different speakers'})}\n\n"
+                        
+                        # Show first few lines for verification
+                        preview_lines = processed_text.split('\\n')[:3]
+                        yield f"data: {json.dumps({'type': 'debug', 'message': f'Preview: {preview_lines}'})}\n\n"
+                        
+                        # Log voice assignments if available
+                        voice_assignments = getattr(vibevoice_server.llm_processor, '_last_voice_assignments', {})
+                        if voice_assignments:
+                            yield f"data: {json.dumps({'type': 'debug', 'message': f'Voice assignments: {voice_assignments}'})}\n\n"
+                        else:
+                            yield f"data: {json.dumps({'type': 'debug', 'message': 'No explicit voice assignments - using defaults'})}\n\n"
+                        
+                        yield f"data: {json.dumps({'type': 'result', 'normalized': processed_text, 'units': len(synthesis_units), 'processing_time': duration})}\n\n"
+                        yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+                        
+                except concurrent.futures.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Processing timed out - text too complex', 'error_type': 'timeout'})}\n\n"
+                except Exception as llm_error:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'LLM processing failed: {str(llm_error)}', 'error_type': 'llm_processing'})}\n\n"
+            else:
+                yield f"data: {json.dumps({'type': 'error', 'message': 'LLM processor not available', 'error_type': 'no_processor'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Server error: {str(e)}', 'error_type': 'server_error'})}\n\n"
+    
+    return Response(generate_stream(), mimetype='text/event-stream')
+
 @app.route('/studio')
 def voice_studio():
     """Serve Voice Studio interface"""
@@ -140,9 +259,306 @@ def voice_studio():
         </html>
         """
 
+@app.route('/monitor')
+def monitor():
+    """Serve monitoring dashboard"""
+    return send_from_directory('static', 'monitor.html')
+
 # =============================================================================
 # Enhanced API Endpoints
 # =============================================================================
+
+# =============================================================================
+# Batch Processing Endpoints
+# =============================================================================
+
+@app.route('/batch/submit', methods=['POST'])
+def submit_batch_job():
+    """Submit text for batch processing"""
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    text = data['text'].strip()
+    if not text:
+        return jsonify({'error': 'Empty text provided'}), 400
+    
+    job_id = batch_processor.submit_job(text)
+    
+    return jsonify({
+        'job_id': job_id,
+        'status': 'queued',
+        'message': 'Job submitted for processing',
+        'check_url': f'/batch/status/{job_id}'
+    })
+
+@app.route('/batch/status/<job_id>', methods=['GET'])
+def get_batch_status(job_id):
+    """Get status of a batch job"""
+    job_status = batch_processor.get_job_status(job_id)
+    
+    if not job_status:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    return jsonify(job_status)
+
+@app.route('/batch/list', methods=['GET'])
+def list_batch_jobs():
+    """List all batch jobs"""
+    jobs = batch_processor.list_jobs()
+    return jsonify({'jobs': jobs})
+
+@app.route('/batch/audio/<job_id>', methods=['GET'])
+def get_batch_audio(job_id):
+    """Get audio file for completed job"""
+    job_status = batch_processor.get_job_status(job_id)
+    
+    if not job_status:
+        return jsonify({'error': 'Job not found'}), 404
+    
+    if job_status['status'] != 'completed':
+        return jsonify({'error': 'Job not completed yet'}), 400
+    
+    audio_file = job_status.get('audio_file')
+    if not audio_file:
+        return jsonify({'error': 'No audio file available'}), 404
+    
+    audio_path = os.path.join(batch_processor.results_dir, audio_file)
+    if not os.path.exists(audio_path):
+        return jsonify({'error': 'Audio file not found'}), 404
+    
+    return send_file(audio_path, mimetype='audio/wav')
+
+@app.route('/batch', methods=['GET'])
+def batch_interface():
+    """Serve simple batch processing interface"""
+    return """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VibeVoice Batch Processing</title>
+    <style>
+        body { font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 20px; }
+        .card { background: #f8f9fa; padding: 30px; border-radius: 10px; margin: 20px 0; }
+        textarea { width: 100%; height: 200px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 12px 24px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .status { margin: 20px 0; padding: 15px; border-radius: 5px; }
+        .queued { background: #cce7ff; color: #004085; }
+        .processing { background: #fff3cd; color: #856404; }
+        .completed { background: #d4edda; color: #155724; }
+        .failed { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <h1>🎭 VibeVoice Batch Processing</h1>
+    
+    <div class="card">
+        <h2>Submit Text for Processing</h2>
+        <textarea id="inputText" placeholder="Paste your text here..."></textarea>
+        <br><br>
+        <button onclick="submitJob()">🚀 Submit Batch Job</button>
+    </div>
+    
+    <div class="card">
+        <h2>Job Status</h2>
+        <div id="jobStatus">No jobs submitted yet</div>
+        <button onclick="refreshStatus()" style="background: #28a745;">🔄 Refresh Status</button>
+    </div>
+    
+    <script>
+        let currentJobId = null;
+        
+        async function submitJob() {
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                alert('Please enter some text first');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/batch/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                const result = await response.json();
+                currentJobId = result.job_id;
+                
+                document.getElementById('jobStatus').innerHTML = 
+                    `<div class="status queued">Job ${result.job_id} submitted and queued for processing</div>`;
+                
+                // Start polling for status
+                pollStatus();
+                
+            } catch (error) {
+                document.getElementById('jobStatus').innerHTML = 
+                    `<div class="status failed">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function refreshStatus() {
+            if (!currentJobId) {
+                document.getElementById('jobStatus').innerHTML = 'No job ID available';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/batch/status/${currentJobId}`);
+                const job = await response.json();
+                
+                displayJobStatus(job);
+                
+            } catch (error) {
+                document.getElementById('jobStatus').innerHTML = 
+                    `<div class="status failed">Error checking status: ${error.message}</div>`;
+            }
+        }
+        
+        function displayJobStatus(job) {
+            const statusClass = job.status.replace('_', '');
+            let html = `<div class="status ${statusClass}">
+                <strong>Job ${job.job_id}</strong>: ${job.status}<br>
+                <small>Submitted: ${new Date(job.created_at * 1000).toLocaleTimeString()}</small><br>
+                <strong>Input Text:</strong> ${job.original_text_preview}
+            </div>`;
+            
+            // Show processing times
+            if (job.processing_time_text) {
+                html += `<div><strong>✅ Text Processing:</strong> ${job.processing_time_text.toFixed(1)}s</div>`;
+            }
+            
+            if (job.processing_time_audio) {
+                html += `<div><strong>✅ Audio Processing:</strong> ${job.processing_time_audio.toFixed(1)}s</div>`;
+            }
+            
+            // Show normalized text with better formatting
+            if (job.normalized_text) {
+                const lines = job.normalized_text.split('\\n');
+                html += `<div style="margin: 20px 0;">
+                    <strong>📝 Normalized Text (${lines.length} lines):</strong>
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; font-family: monospace; white-space: pre-line; max-height: 300px; overflow-y: auto;">${job.normalized_text}</div>
+                </div>`;
+            }
+            
+            // Show voice assignments with better formatting
+            if (job.voice_assignments) {
+                html += `<div style="margin: 20px 0;">
+                    <strong>🎭 Voice Assignments:</strong>
+                    <div style="background: #e8f4fd; padding: 15px; border-radius: 5px;">`;
+                
+                Object.entries(job.voice_assignments).forEach(([speaker, voice]) => {
+                    const voiceName = voice.split('/').pop().replace('.wav', '').replace('en-', '').replace('_woman', '').replace('_man', '');
+                    html += `<div>Speaker ${speaker}: ${voiceName}</div>`;
+                });
+                
+                html += `</div></div>`;
+            }
+            
+            // Show audio player
+            if (job.audio_file) {
+                html += `<div style="margin: 20px 0;">
+                    <strong>🔊 Generated Audio:</strong><br>
+                    <audio controls style="width: 100%; margin: 10px 0;" src="/batch/audio/${job.job_id}"></audio>
+                    <div>Duration: ${job.audio_duration}s</div>
+                </div>`;
+            }
+            
+            // Show errors
+            if (job.error_message) {
+                html += `<div class="status failed" style="margin-top: 15px;">
+                    <strong>❌ Error:</strong> ${job.error_message}
+                </div>`;
+            }
+            
+            document.getElementById('jobStatus').innerHTML = html;
+        }
+        
+        function pollStatus() {
+            if (!currentJobId) return;
+            
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/batch/status/${currentJobId}`);
+                    const job = await response.json();
+                    
+                    displayJobStatus(job);
+                    
+                    if (job.status === 'completed' || job.status === 'failed') {
+                        clearInterval(interval);
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
+    """
+
+@app.route('/prompt/current', methods=['GET'])
+def get_current_prompt():
+    """Get the current VibeVoice prompt template"""
+    from prompt_templates import VibeVoicePrompts
+    return jsonify({
+        'prompt_template': VibeVoicePrompts.get_prompt_for_manual_use(),
+        'voice_info': VibeVoicePrompts.get_voice_assignment_info(),
+        'version': 'v1.0'
+    })
+
+@app.route('/debug/phi4', methods=['POST'])
+def debug_phi4():
+    """Debug endpoint to see raw phi4 output"""
+    data = request.get_json()
+    if not data or 'text' not in data:
+        return jsonify({'error': 'No text provided'}), 400
+    
+    text = data['text']
+    
+    try:
+        if vibevoice_server.llm_processor:
+            # Get raw phi4 output without parsing
+            prompt = f"""Convert this text to VibeVoice format.
+
+RULES:
+- Text in quotes = dialogue (assign to specific speaker)
+- Text not in quotes = narrative (assign to Speaker 0)
+- Output EXACTLY one line per utterance in this format: "Speaker N: text"
+- Use Speaker 0 for narrative/description
+- Use Speaker 1, Speaker 2, etc. for named characters
+
+EXAMPLE:
+Input: "Hello," said Alice. She smiled.
+Output:
+Speaker 1: Hello
+Speaker 0: said Alice. She smiled.
+
+Now convert this text:
+{text}
+
+VibeVoice format output:"""
+            
+            # Direct engine call to see raw output
+            raw_response = vibevoice_server.llm_processor.engine.generate(
+                prompt,
+                temperature=0.0,
+                timeout=300  # 5 minute timeout for debugging
+            )
+            
+            return jsonify({
+                'input_text': text,
+                'prompt_length': len(prompt),
+                'raw_response': raw_response,
+                'response_length': len(raw_response),
+                'preview': raw_response[:500] + ('...' if len(raw_response) > 500 else '')
+            })
+        else:
+            return jsonify({'error': 'LLM processor not available'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -150,7 +566,18 @@ def health():
     health_data = vibevoice_server.health_check()
     health_data['timestamp'] = time.time()
     health_data['host'] = request.host
-    health_data['enhanced_metrics'] = vibevoice_server.get_enhanced_metrics()
+    
+    # Add runtime metrics
+    metrics = vibevoice_server.get_enhanced_metrics()
+    metrics['total_requests'] = getattr(vibevoice_server, 'total_requests', 0)
+    metrics['avg_rtf'] = getattr(vibevoice_server, 'avg_rtf', 2.5)
+    
+    # Add LLM cache stats if available
+    if vibevoice_server.llm_processor:
+        cache_stats = getattr(vibevoice_server.llm_processor, 'cache_stats', {})
+        metrics['llm']['cache_hit_rate'] = cache_stats.get('hit_rate', 0)
+    
+    health_data['enhanced_metrics'] = metrics
     return jsonify(health_data)
 
 @app.route('/process/text', methods=['POST'])
@@ -167,33 +594,16 @@ def process_text():
         }), 503
     
     try:
-        # Check messiness score
-        from llm_text_processor import MessinessScorer
-        scorer = MessinessScorer()
-        messiness = scorer.score(text)
-        
-        # Process if messy enough or forced
-        if force_llm or (vibevoice_server.llm_processor and messiness >= 0.35):
-            if vibevoice_server.llm_processor:
-                processed, units = vibevoice_server.llm_processor.process(text, force_llm)
-                return jsonify({
-                    'processed': processed,
-                    'messiness_score': messiness,
+        # Always use LLM processing - no fallbacks
+        if vibevoice_server.llm_processor:
+            processed, units = vibevoice_server.llm_processor.process(text, force_llm=True)
+            return jsonify({
+                'processed': processed,
                     'units': len(units),
                     'used_llm': True
                 })
-        
-        # Use regex fallback
-        from vibevoice_production_v2 import SpeakerParser
-        parser = SpeakerParser()
-        processed = parser.parse(text)
-        
-        return jsonify({
-            'processed': processed,
-            'messiness_score': messiness,
-            'used_llm': False,
-            'reason': 'Clean text, used regex parser'
-        })
+        else:
+            return jsonify({'error': 'LLM processor not available'}), 503
         
     except Exception as e:
         logger.error(f"Text processing error: {e}")
@@ -212,24 +622,24 @@ def synthesize():
         model_size = data.get('model', '1.5B')
         voice_id = data.get('voice')
         max_seconds = data.get('max_seconds', 30)
+        # If max_seconds is 0 or not provided, use model maximum
+        if max_seconds == 0:
+            # Model can handle up to ~15 minutes safely, but set reasonable default
+            max_seconds = 900  # 15 minutes max
+            logger.info(f"SERVER DEBUG: Converted max_seconds=0 to max_seconds={max_seconds}")
+        else:
+            logger.info(f"SERVER DEBUG: Using provided max_seconds={max_seconds}")
         output_format = data.get('format', 'wav')
         use_llm = data.get('use_llm', None)  # None = auto, True/False = forced
         
         # Resolve voice path
         if voice_id:
-            if voice_id.endswith('.wav'):
-                voice_path = f"demo/voices/{voice_id}"
-            else:
-                voice_path = f"demo/voices/{voice_id}.wav"
-            
-            # Check variants directory too
-            if not os.path.exists(voice_path):
-                variant_path = f"demo/voices/variants/{voice_id}.wav"
-                if os.path.exists(variant_path):
-                    voice_path = variant_path
-                else:
-                    logger.warning(f"Voice not found: {voice_path}, using default")
-                    voice_path = DEFAULT_VOICE
+            try:
+                from voice_utils import resolve_voice_path
+                voice_path = str(resolve_voice_path(voice_id))
+            except FileNotFoundError as e:
+                logger.warning(f"Voice not found: {voice_id}, using default. {e}")
+                voice_path = DEFAULT_VOICE
         else:
             voice_path = DEFAULT_VOICE
         
@@ -237,6 +647,7 @@ def synthesize():
         
         # Generate audio
         start_time = time.time()
+        logger.info(f"SERVER DEBUG: About to call generate with max_seconds={max_seconds}")
         audio, metadata = vibevoice_server.generate(
             text=text,
             voice_path=voice_path,
@@ -485,6 +896,7 @@ def main():
     print(f"    - http://{local_ip}:{PORT}/advanced - Advanced interface")
     print(f"    - http://{local_ip}:{PORT}/pro      - Professional interface")
     print(f"    - http://{local_ip}:{PORT}/studio   - Voice Studio")
+    print(f"    - http://{local_ip}:{PORT}/monitor  - System Monitor")
     print("="*60)
     print("  Features:")
     print(f"    - LLM Processing: {'ENABLED' if config['llm']['enabled'] else 'DISABLED (safe mode)'}")
